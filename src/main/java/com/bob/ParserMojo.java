@@ -8,7 +8,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 import java.io.File;
 import java.util.Objects;
 
-@Mojo(name = "decorator-parser", defaultPhase = LifecyclePhase.COMPILE)
+@Mojo(name = "decorator-parser", defaultPhase = LifecyclePhase.PROCESS_SOURCES)
 public class ParserMojo extends AbstractMojo {
 
     @Parameter(required = true)
