@@ -5,8 +5,10 @@ public class ExampleDecoratedClass {
     @ExampleDecorator
     public void doSomething() {
         System.out.println("Hello from ExampleDecorator.apply()");
-        {
-            // do thing that will be decorated
+        if (true) {
+            {
+                // do thing that will be decorated
+            }
         }
     }
 }
