@@ -6,10 +6,13 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.ast.visitor.GenericVisitorAdapter;
 import org.codehaus.plexus.util.FileUtils;
 
+import javax.swing.plaf.nimbus.State;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -41,11 +44,27 @@ public class Parser {
             outputDir.mkdir();
         }
         try {
-            FileUtils.copyDirectory(projectDir, outputDir);
+            FileUtils.copyDirectoryStructure(projectDir, outputDir);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
+
+
+    // visitor which replaces the proceed() call with the body of the decorated method
+    private static final GenericVisitorAdapter<ExpressionStmt, BlockStmt> proceedExpressionVisitor =
+            new GenericVisitorAdapter<ExpressionStmt, BlockStmt>() {
+
+        public ExpressionStmt visit(ExpressionStmt expressionStmt, BlockStmt methodBody) {
+            if (expressionStmt.getExpression().isMethodCallExpr()) {
+                if (expressionStmt.getExpression().asMethodCallExpr().getName().asString().equals("proceed")) {
+                    expressionStmt.replace(methodBody);
+                }
+            }
+            return super.visit(expressionStmt, methodBody);
+        }
+
+    };
 
 
     public static void applyDecoration(AnnotationDeclaration decorator, MethodDeclaration method) {
@@ -54,18 +73,7 @@ public class Parser {
 
         MethodDeclaration decoratedMethod = decoratorMethod.clone();
         BlockStmt decoratedMethodBody = decoratedMethod.getBody().orElseThrow();
-        NodeList<Statement> decoratorStatementNodes = decoratedMethodBody.getStatements();
-
-        for (Statement statement : decoratorStatementNodes) {
-            if (statement.isExpressionStmt()) {
-                Expression expression = statement.asExpressionStmt().getExpression();
-                if (expression.isMethodCallExpr()) {
-                    if (expression.asMethodCallExpr().getName().asString().equals("proceed")) {
-                        statement.replace(methodBody);
-                    }
-                }
-            }
-        }
+        proceedExpressionVisitor.visit(decoratedMethodBody, methodBody);
 
         method.setBody(decoratedMethodBody);
         writeWithCompilationUnit(method.findCompilationUnit().get());

@@ -8,7 +8,9 @@ public @interface ExampleDecorator {
 
         public void apply() {
             System.out.println("Hello from ExampleDecorator.apply()");
-            proceed();
+            if (true) {
+                proceed();
+            }
         }
 
     }
