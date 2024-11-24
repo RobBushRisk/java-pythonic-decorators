@@ -13,6 +13,7 @@ import org.codehaus.plexus.util.FileUtils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -49,7 +50,7 @@ public class Parser {
 
     public static void applyDecoration(AnnotationDeclaration decorator, MethodDeclaration method) {
         BlockStmt methodBody = method.getBody().orElseThrow();
-        MethodDeclaration decoratorMethod = decorator.getMethodsByName("apply").getFirst();
+        MethodDeclaration decoratorMethod = getDecoratorApplication(decorator);
 
         MethodDeclaration decoratedMethod = decoratorMethod.clone();
         BlockStmt decoratedMethodBody = decoratedMethod.getBody().orElseThrow();
@@ -67,6 +68,23 @@ public class Parser {
         }
 
         method.setBody(decoratedMethodBody);
+        writeWithCompilationUnit(method.findCompilationUnit().get());
+    }
+
+
+    public static void writeWithCompilationUnit(CompilationUnit cu) {
+        try {
+            Files.write(cu.getStorage().get().getPath(), cu.toString().getBytes());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    public static MethodDeclaration getDecoratorApplication(AnnotationDeclaration decorator) {
+        return decorator.getMembers().stream()
+                .filter(BodyDeclaration::isClassOrInterfaceDeclaration)
+                .toList().getFirst().asClassOrInterfaceDeclaration().getMethodsByName("apply").getFirst();
     }
 
 
