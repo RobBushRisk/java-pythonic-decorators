@@ -20,7 +20,7 @@ public class TestParser {
     public void testFindingDecorators() {
         List<AnnotationDeclaration> decorators = Parser.getDecorators(new File("src/test"));
         Assertions.assertEquals("ExampleDecorator", decorators.get(0).getNameAsString());
-        Assertions.assertEquals(1, decorators.size());
+        Assertions.assertEquals(2, decorators.size());
     }
 
     @Test
