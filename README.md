@@ -1,5 +1,5 @@
 # java-pythonic-decorators
-Allows implementation of python-like decorators in Java
+A maven plugin which allows implementation of python-like decorators in Java
 
 How to use:
 
