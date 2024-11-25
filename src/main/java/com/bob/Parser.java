@@ -2,17 +2,16 @@ package com.bob;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
-import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.visitor.GenericVisitorAdapter;
+import javassist.compiler.ast.MethodDecl;
 import org.codehaus.plexus.util.FileUtils;
 
-import javax.swing.plaf.nimbus.State;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -26,17 +25,29 @@ public class Parser {
     public static void parse(File projectDir, File outputDir) {
         initializeOutputDirectory(projectDir, outputDir);
 
-
         List<AnnotationDeclaration> decorators = getDecorators(outputDir);
-        for (AnnotationDeclaration decorator : decorators) {
-            List<MethodDeclaration> decoratedMethods = getDecoratedMethods(decorator, outputDir);
-            for (MethodDeclaration decoratedMethod : decoratedMethods) {
-                System.out.println("Applying decoration " + decorator.getName().asString() +
-                        " to method: " + decoratedMethod.getName().asString());
+        List<String> decoratorNames = decorators.stream()
+                .map(AnnotationDeclaration::getName)
+                .map(SimpleName::asString)
+                .toList();
 
-                applyDecoration(decorator, decoratedMethod);
-            }
+        //for (AnnotationDeclaration decorator : decorators) {
+        //    List<MethodDeclaration> decoratedMethods = getDecoratedMethods(decorator, outputDir);
+        //    for (MethodDeclaration decoratedMethod : decoratedMethods) {
+        //        System.out.println("Applying decoration " + decorator.getName().asString() +
+        //                " to method: " + decoratedMethod.getName().asString());
+        //
+        //        applyDecoration(decorator, decoratedMethod);
+        //    }
+        //}
+
+        List<MethodDeclaration> decoratedMethods = getDecoratedMethods(decorators, outputDir);
+        for (MethodDeclaration decoratedMethod : decoratedMethods) {
+            System.out.println("Applying decoration to method: " + decoratedMethod.getName().asString());
+            applyDecoration(decorators, decoratedMethod);
         }
+
+
     }
 
     public static void initializeOutputDirectory(File projectDir, File outputDir) {
@@ -52,7 +63,7 @@ public class Parser {
 
 
     // visitor which replaces the proceed() call with the body of the decorated method
-    private static final GenericVisitorAdapter<ExpressionStmt, BlockStmt> proceedExpressionVisitor =
+    private static final GenericVisitorAdapter<ExpressionStmt, BlockStmt> proceedExpressionReplacerVisitor =
             new GenericVisitorAdapter<ExpressionStmt, BlockStmt>() {
 
         public ExpressionStmt visit(ExpressionStmt expressionStmt, BlockStmt methodBody) {
@@ -73,10 +84,37 @@ public class Parser {
 
         MethodDeclaration decoratedMethod = decoratorMethod.clone();
         BlockStmt decoratedMethodBody = decoratedMethod.getBody().orElseThrow();
-        proceedExpressionVisitor.visit(decoratedMethodBody, methodBody);
+        proceedExpressionReplacerVisitor.visit(decoratedMethodBody, methodBody);
 
         method.setBody(decoratedMethodBody);
         writeWithCompilationUnit(method.findCompilationUnit().get());
+    }
+
+
+    public static void applyDecoration(List<AnnotationDeclaration> decorators, MethodDeclaration method) {
+        List<String> decoratorNames = decorators.stream()
+                .map(AnnotationDeclaration::getName)
+                .map(SimpleName::asString)
+                .toList();
+
+        for (AnnotationExpr decoratorExpr: method.getAnnotations().stream()
+                .filter(annotationExpr -> decoratorNames.contains(annotationExpr.getName().asString())).toList()) {
+
+            AnnotationDeclaration decorator = decorators.stream()
+                .filter(annotationDeclaration -> annotationDeclaration.getName().asString()
+                        .equals(decoratorExpr.getName().asString()))
+                .toList().get(0);
+            MethodDeclaration decoratorMethod = getDecoratorApplication(decorator);
+
+            MethodDeclaration decoratedMethod = decoratorMethod.clone();
+            BlockStmt decoratedMethodBody = decoratedMethod.getBody().orElseThrow();
+            BlockStmt methodBody = method.getBody().orElseThrow();
+            proceedExpressionReplacerVisitor.visit(decoratedMethodBody, methodBody);
+
+            method.setBody(decoratedMethodBody);
+            writeWithCompilationUnit(method.findCompilationUnit().get());
+            System.out.println("Applied decoration: " + decoratorExpr.getName().asString());
+        }
     }
 
 
@@ -92,13 +130,19 @@ public class Parser {
     public static MethodDeclaration getDecoratorApplication(AnnotationDeclaration decorator) {
         return decorator.getMembers().stream()
                 .filter(BodyDeclaration::isClassOrInterfaceDeclaration)
-                .toList().getFirst().asClassOrInterfaceDeclaration().getMethodsByName("apply").getFirst();
+                .toList().get(0).asClassOrInterfaceDeclaration().getMethodsByName("apply").get(0);
     }
 
 
     public static List<MethodDeclaration> getDecoratedMethods(AnnotationDeclaration decorator, File directory) {
         ArrayList<MethodDeclaration> decoratedMethods = new ArrayList<>();
         addDecoratedMethodsToArray(decoratedMethods, decorator, directory);
+        return decoratedMethods;
+    }
+
+    public static List<MethodDeclaration> getDecoratedMethods(List<AnnotationDeclaration> decorators, File directory) {
+        ArrayList<MethodDeclaration> decoratedMethods = new ArrayList<>();
+        addDecoratedMethodsToArray(decoratedMethods, decorators, directory);
         return decoratedMethods;
     }
 
@@ -134,11 +178,58 @@ public class Parser {
         }
     }
 
+    public static void addDecoratedMethodsToArray(ArrayList<MethodDeclaration> arrayList,
+                                                  List<AnnotationDeclaration> decorators,
+                                                  File file) {
+        for (File thisFile : Objects.requireNonNull(file.listFiles())) {
+            if (thisFile.isDirectory()) {
+                addDecoratedMethodsToArray(arrayList, decorators, thisFile);
+            } else {
+                if (thisFile.getName().endsWith(".java")) {
+
+                    CompilationUnit cu = null;
+                    try {
+                        cu = StaticJavaParser.parse(thisFile);
+                    } catch (FileNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    for (TypeDeclaration<?> type : cu.getTypes().stream().toList()) {
+                        if (type.isClassOrInterfaceDeclaration()) {
+                            ClassOrInterfaceDeclaration classDeclaration = (ClassOrInterfaceDeclaration) type;
+                            for (MethodDeclaration method : classDeclaration.getMethods()) {
+                                if (isDecorated(method, decorators)) {
+                                    arrayList.add(method);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 
     public static boolean isDecorated(MethodDeclaration methodDeclaration, AnnotationDeclaration decorator) {
         return methodDeclaration.getAnnotations().stream()
                 .map(annotationExpr -> annotationExpr.getName().asString())
                 .anyMatch(annotationName -> annotationName.equals(decorator.getName().asString()));
+    }
+
+    public static boolean isDecorated(MethodDeclaration methodDeclaration, AnnotationExpr annotationExpression) {
+        return methodDeclaration.getAnnotations().stream()
+                .map(annotationExpr -> annotationExpr.getName().asString())
+                .anyMatch(annotationName -> annotationName.equals(annotationExpression.getName().asString()));
+    }
+
+    public static boolean isDecorated(MethodDeclaration methodDeclaration, List<AnnotationDeclaration> decorators) {
+        List<String> decoratorNames = decorators.stream()
+                .map(AnnotationDeclaration::getName)
+                .map(SimpleName::asString)
+                .toList();
+        return methodDeclaration.getAnnotations().stream()
+                .map(annotationExpr -> annotationExpr.getName().asString())
+                .anyMatch(decoratorNames::contains);
     }
 
 

@@ -19,17 +19,17 @@ public class TestParser {
     @Test
     public void testFindingDecorators() {
         List<AnnotationDeclaration> decorators = Parser.getDecorators(new File("src/test"));
-        Assertions.assertEquals("ExampleDecorator", decorators.getFirst().getNameAsString());
+        Assertions.assertEquals("ExampleDecorator", decorators.get(0).getNameAsString());
         Assertions.assertEquals(1, decorators.size());
     }
 
     @Test
     public void testFindingDecoratedMethods() {
         List<AnnotationDeclaration> decorators = Parser.getDecorators(new File("src/test"));
-        AnnotationDeclaration decorator = decorators.getFirst();
+        AnnotationDeclaration decorator = decorators.get(0);
 
         List<MethodDeclaration> decoratedMethods = Parser.getDecoratedMethods(decorator, new File("src/test"));
-        Assertions.assertEquals("doSomething", decoratedMethods.getFirst().getNameAsString());
+        Assertions.assertEquals("doSomething", decoratedMethods.get(0).getNameAsString());
         Assertions.assertEquals(1, decoratedMethods.size());
     }
 

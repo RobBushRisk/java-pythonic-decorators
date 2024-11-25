@@ -1,5 +1,6 @@
-package com.bob;
+package com.bob.mojo;
 
+import com.bob.Parser;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -8,10 +9,9 @@ import org.codehaus.plexus.util.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Objects;
 
 @Mojo(name = "decorator-compiler-preprocessor", defaultPhase = LifecyclePhase.PROCESS_SOURCES)
-public class CompilerMojoPreProcessor extends AbstractMojo {
+public class CompilerPreProcessor extends AbstractMojo {
 
     @Parameter(required = true)
     private String sourceDirectory;

@@ -1,5 +1,6 @@
-package com.bob;
+package com.bob.mojo;
 
+import com.bob.Parser;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -9,7 +10,7 @@ import java.io.File;
 import java.util.Objects;
 
 @Mojo(name = "decorator-parser", defaultPhase = LifecyclePhase.PROCESS_SOURCES)
-public class ParserMojo extends AbstractMojo {
+public class DecoratorParser extends AbstractMojo {
 
     @Parameter(required = true)
     private String sourceDirectory;
