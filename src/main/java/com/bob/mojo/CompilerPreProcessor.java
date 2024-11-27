@@ -18,21 +18,18 @@ public class CompilerPreProcessor extends AbstractMojo {
 
     public void execute() {
 
+        File sourceFile = new File(sourceDirectory);
+
         try {
-            FileUtils.copyDirectoryStructure(new File(sourceDirectory), new File("backup_compiler_storage"));
+            FileUtils.copyDirectoryStructure(sourceFile, new File("backup_compiler_storage"));
+            FileUtils.copyDirectoryStructure(sourceFile, new File("temp_compiler_storage"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
         try {
-            FileUtils.copyDirectoryStructure(new File(sourceDirectory), new File("temp_compiler_storage"));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        try {
-            FileUtils.deleteDirectory(new File(sourceDirectory));
-            Parser.parse(new File("temp_compiler_storage"), new File(sourceDirectory));
+            FileUtils.deleteDirectory(sourceFile);
+            Parser.parse(new File("temp_compiler_storage"), sourceFile);
         } catch (Exception e) {
             throw new RuntimeException("if you lose your source code, check in backup_compiler_storage \n" + e);
         }
