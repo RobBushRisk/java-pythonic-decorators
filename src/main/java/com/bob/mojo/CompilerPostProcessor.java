@@ -4,7 +4,7 @@ import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-import org.codehaus.plexus.util.FileUtils;
+import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,7 +24,7 @@ public class CompilerPostProcessor extends AbstractMojo {
         }
 
         try {
-            FileUtils.copyDirectoryStructure(new File("temp_compiler_storage"), new File(sourceDirectory));
+            FileUtils.copyDirectory(new File("temp_compiler_storage"), new File(sourceDirectory));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
